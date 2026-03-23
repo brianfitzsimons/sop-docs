@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Chart Retrieval — Step-by-Step Call Flow</title>
+<style>
+  :root {
+    --brand:  #1a3a5c;
+    --accent: #0077cc;
+    --green:  #0a7c4f;
+    --amber:  #b45309;
+    --red:    #b91c1c;
+    --border: #d1d9e0;
+    --text:   #1e293b;
+    --muted:  #64748b;
+    --light:  #f0f4f8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--text);
+    background: #f8fafc;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .page { max-width: 820px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  /* Header */
+  .header {
+    background: var(--brand);
+    color: #fff;
+    padding: 32px 36px;
+    border-radius: 12px;
+    margin-bottom: 36px;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header p  { font-size: 13px; opacity: .75; margin-top: 6px; }
+  .header .meta { display: flex; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
+  .header .meta span {
+    background: rgba(255,255,255,.13);
+    border-radius: 6px;
+    padding: 3px 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Step container */
+  .steps { list-style: none; padding: 0; position: relative; }
+  .steps::before {
+    content: '';
+    position: absolute;
+    left: 22px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+    z-index: 0;
+  }
+
+  .step {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .step-num {
+    min-width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--brand);
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+    box-shadow: 0 0 0 4px #f8fafc;
+  }
+
+  .step-num.end {
+    background: var(--green);
+  }
+
+  .step-body {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    flex: 1;
+  }
+
+  .step-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .step-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--brand);
+    margin-bottom: 10px;
+  }
+
+  .step-body ul {
+    padding-left: 18px;
+    margin: 0;
+  }
+  .step-body ul li {
+    margin-bottom: 5px;
+  }
+
+  /* Decision boxes */
+  .decision {
+    background: #fffbeb;
+    border: 1.5px solid #fcd34d;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 10px 0 4px;
+    font-size: 13px;
+  }
+  .decision-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--amber);
+    margin-bottom: 5px;
+  }
+  .if-then {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-size: 13px;
+    align-items: flex-start;
+  }
+  .if-label {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .if-label.yes { background: #dcfce7; color: var(--green); }
+  .if-label.no  { background: #fee2e2; color: var(--red); }
+
+  /* Chart volume table */
+  .vol-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .vol-table th {
+    background: var(--brand);
+    color: #fff;
+    padding: 7px 10px;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .vol-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .vol-table tr:last-child td { border-bottom: none; }
+  .vol-table tr:nth-child(even) td { background: #f8fafc; }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-purple { background: #f3e8ff; color: #6b21a8; }
+  .badge-red    { background: #fee2e2; color: var(--red); }
+  .badge-amber  { background: #fef3c7; color: var(--amber); }
+  .badge-green  { background: #dcfce7; color: var(--green); }
+  .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+
+  /* Warning / note callouts */
+  .callout {
+    border-radius: 7px;
+    padding: 10px 14px;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .callout.warn  { background: #fef3c7; border-left: 3px solid #f59e0b; }
+  .callout.stop  { background: #fee2e2; border-left: 3px solid var(--red); }
+  .callout.info  { background: #dbeafe; border-left: 3px solid var(--accent); }
+  .callout.good  { background: #dcfce7; border-left: 3px solid var(--green); }
+  .callout strong { font-weight: 700; }
+
+  /* Script block */
+  .script {
+    background: #f0f4f8;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 14px;
+    font-style: italic;
+    font-size: 13px;
+    margin-top: 8px;
+    line-height: 1.7;
+  }
+
+  /* Valid / invalid */
+  .valid-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .valid-box { border-radius: 7px; padding: 10px 14px; font-size: 13px; }
+  .valid-box.yes { background: #dcfce7; border: 1px solid #86efac; }
+  .valid-box.no  { background: #fee2e2; border: 1px solid #fca5a5; }
+  .valid-box h4 { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  .valid-box h4.yes { color: var(--green); }
+  .valid-box h4.no  { color: var(--red); }
+  .valid-box ul { padding-left: 16px; }
+  .valid-box ul li { margin-bottom: 3px; }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 20px 0;
+    color: var(--muted);
+    font-size: 11px;
+    border-top: 1px solid var(--border);
+    margin-top: 20px;
+  }
+
+  @media print {
+    body { background: #fff; }
+    .page { padding: 16px; }
+    .steps::before { display: none; }
+  }
+</style>
+</head>
+<script>
+  (function() {
+    const correct = "GOTEAM";
+    const stored = sessionStorage.getItem("auth");
+    if (stored !== correct) {
+      const input = prompt("Enter password to view this page:");
+      if (input !== correct) {
+        document.documentElement.innerHTML = "<div style='font-family:sans-serif;text-align:center;padding:80px;color:#b91c1c;font-size:18px;'>Incorrect password. Please refresh to try again.</div>";
+        return;
+      }
+      sessionStorage.setItem("auth", correct);
+    }
+  })();
+</script>
+<body>
+<div class="page">
+
+  <div class="header">
+    <h1>Multi-Chart Retrieval — Step-by-Step Call Flow</h1>
+    <p>Follow each step in order. Decision points are clearly marked — act on whichever applies and continue to the next step.</p>
+    <div class="meta">
+      <span>Retrieval Operations · Offsite</span>
+      <span>Updated 03/11/2026</span>
+      <span>Multi-ORG / Multi-Health Plan / High Volume</span>
+    </div>
+  </div>
+
+  <ol class="steps">
+
+    <!-- STEP 1 -->
+    <li class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-label">Before the call</div>
+        <div class="step-title">Pre-Call Preparation</div>
+        <ul>
+          <li>Open <strong>all active ORGs</strong> for this site in ChartFinder</li>
+          <li>Add up the "to go" chart count across every ORG — note the <strong>combined total</strong></li>
+          <li>Note how many <strong>health plans</strong> are involved (1 or 2+)</li>
+          <li>Check TT notes — confirm whether address, fax, and members/providers were previously verified and still match current demographics</li>
+          <li>Note the inventory status of each ORG: <em>Unscheduled / Past Due / Scheduled / Rescheduled</em></li>
+        </ul>
+      </div>
+    </li>
+
+    <!-- STEP 2 -->
+    <li class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-label">Pre-call check</div>
+        <div class="step-title">Check Demographics — Do You Need to Re-verify?</div>
+        <div class="decision">
+          <div class="decision-label">Decision — Do TT notes match current demographics?</div>
+          <div class="if-then">
+            <span class="if-label yes">YES — match</span>
+            <span>No re-verification needed. Proceed directly to Step 3. <em>(Update EMR field only if it's blank — this does not require full reverification.)</em></span>
+          </div>
+          <div class="if-then">
+            <span class="if-label no">NO — changed</span>
+            <span>Full reverification required on this call: address, fax, member/provider names, and EMR system.</span>
+          </div>
+        </div>
+        <div class="callout warn">
+          <strong>Also reverify if:</strong> PHI will be released and the HIH vendor name is not listed in notes.
+        </div>
+      </div>
+    </li>
+
+    <!-- STEP 3 -->
+    <li class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-label">Call opening</div>
+        <div class="step-title">Open the Call</div>
+        <div class="script">
+          "Hello, this is <strong>[Your Name]</strong> calling on behalf of <strong>[Health Plan name / multiple health plans]</strong> from Datavant. Please be advised this call is being recorded."
+        </div>
+        <ul style="margin-top:10px;">
+          <li>If <strong>1 health plan</strong> → name it specifically</li>
+          <li>If <strong>2+ health plans</strong> → say "multiple health plans" — do not name both</li>
+          <li>State the project type: <strong>MRA / ACA / RADV / HEDIS</strong></li>
+          <li>If the inventory is Past Due, Scheduled, or Rescheduled → briefly review last 2–3 call outcomes before opening</li>
+        </ul>
+      </div>
+    </li>
+
+    <!-- STEP 4 -->
+    <li class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-label">Verification</div>
+        <div class="step-title">Verify the Site</div>
+        <div class="decision">
+          <div class="decision-label">Decision — Is full verification needed?</div>
+          <div class="if-then">
+            <span class="if-label yes">DEFAULT</span>
+            <span>Verify <strong>2 members</strong> (name + date of birth) for this phone number.</span>
+          </div>
+          <div class="if-then">
+            <span class="if-label no">EXCEPTION</span>
+            <span>If site refuses member verification → verify <strong>2 providers</strong> (full name including suffix, e.g. John W. Smith Jr.) — document this explicitly in TT notes.</span>
+          </div>
+        </div>
+        <div class="callout info">
+          <strong>Multi-ORG tip:</strong> The same provider name can be used across multiple ORGs if that provider appears in all the relevant ORGs.
+        </div>
+      </div>
+    </li>
+
+    <!-- STEP 5 -->
+    <li class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-label">Chart discussion</div>
+        <div class="step-title">Discuss All ORGs and Total Chart Count</div>
+        <ul>
+          <li>Disclose the total: <em>"We are requesting [X] charts across [Y] requests."</em></li>
+          <li>Cover <strong>every ORG</strong> in this call — do not skip any</li>
+          <li>For <strong>Unscheduled</strong>: discuss chart count and request type, send Provider Package</li>
+          <li>For <strong>Past Due / Scheduled / Rescheduled</strong>: discuss charts received vs. to go, confirm PP receipt, offer shipping support if needed</li>
+          <li>If the site has multiple ORGs each under 15 charts individually → state the combined total: <em>"Combined we have [X] charts — let me explain what we can offer."</em></li>
+        </ul>
+      </div>
+    </li>
+
+    <!-- STEP 6 -->
+    <li class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-label">Retrieval method</div>
+        <div class="step-title">Select the Retrieval Method — Use Combined Chart Count</div>
+        <p style="font-size:13px;margin-bottom:10px;">Always use the <strong>combined total</strong> across all ORGs — not individual counts — to determine the method.</p>
+
+        <table class="vol-table">
+          <thead>
+            <tr>
+              <th>Combined Chart Count</th>
+              <th>Offer in This Order</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-purple">299+ charts</span></td>
+              <td><strong>Do not schedule.</strong> Escalate via SPI Intake job aid.</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-red">60–299 charts</span></td>
+              <td>Onsite (CRS) → SFTP → EMRR → Portal → Fax → Mail</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-amber">15–59 charts</span></td>
+              <td>Onsite (CRS) → EMRR → Portal → Fax → Mail → Email</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-blue">Under 15 charts</span></td>
+              <td>Portal → EMRR → Fax → Mail → Email → Onsite*</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn" style="margin-top:10px;">
+          * If site insists on Onsite with under 15 charts → submit a CRS Request for approval first. <strong>Do not schedule without approval.</strong>
+        </div>
+
+        <div class="decision" style="margin-top:12px;">
+          <div class="decision-label">Decision — 15+ charts and site agrees to CRS (Onsite)?</div>
+          <div class="if-then">
+            <span class="if-label yes">YES</span>
+            <span>Estimate time: <strong>total charts ÷ 10 = hours needed</strong>. Schedule minimum 3 business days out. Ask for any site forms or special instructions.</span>
+          </div>
+          <div class="if-then">
+            <span class="if-label no">NO</span>
+            <span>Offer the next method in the hierarchy above. Confirm retrieval details and access requirements with the provider.</span>
+          </div>
+        </div>
+      </div>
+    </li>
+
+    <!-- STEP 7 -->
+    <li class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-label">Commitment date</div>
+        <div class="step-title">Negotiate Turnaround Time</div>
+        <ul>
+          <li>Reference the Expected Schedule Target Date table below</li>
+          <li>If provider agrees to the target date → thank them, confirm and log it</li>
+          <li>If they cannot meet the target → <em>"Can you provide a reason for the delay so we can advise the health plan(s)?"</em></li>
+          <li><strong>HEDIS &amp; RADV:</strong> always use a 5 business day completion target</li>
+        </ul>
+
+        <table class="vol-table" style="margin-top:10px;">
+          <thead>
+            <tr><th>Chart Count</th><th>Target Completion</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1–2 charts</td><td>2 business days</td></tr>
+            <tr><td>3–5 charts</td><td>3 business days</td></tr>
+            <tr><td>6–10 charts</td><td>4 business days</td></tr>
+            <tr><td>10+ charts</td><td>5 business days</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn" style="margin-top:10px;">
+          <strong>Commit date rules:</strong> ≤8 business days → set Schedule Date = commit date. &gt;8 business days → set to actual commit date and <strong>document the reason</strong> in the summary note. Maximum 30 business days.
+        </div>
+      </div>
+    </li>
+
+    <!-- STEP 8 -->
+    <li class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <div class="step-label">Before hanging up</div>
+        <div class="step-title">Confirm It's a Valid Schedule</div>
+        <div class="valid-grid">
+          <div class="valid-box yes">
+            <h4 class="yes">✓ Valid — ALL must be true</h4>
+            <ul>
+              <li>Spoke to a <strong>live person</strong> at the site</li>
+              <li>Commitment date in <strong>TT notes</strong></li>
+              <li>Commitment date in <strong>ChartFinder</strong></li>
+              <li>Provider Package sent (if required)</li>
+            </ul>
+          </div>
+          <div class="valid-box no">
+            <h4 class="no">✗ Not valid — do not log as scheduled</h4>
+            <ul>
+              <li>IVR or website only — no live contact</li>
+              <li>Left voicemail, no callback</li>
+              <li>Date not documented in both places</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout stop" style="margin-top:10px;">
+          <strong>Soft schedules are invalid</strong> as of 03/11/2024. Must have live confirmation.
+        </div>
+      </div>
+    </li>
+
+    <!-- STEP 9 -->
+    <li class="step">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <div class="step-label">Documentation</div>
+        <div class="step-title">Log and Close — Do This for Every ORG Worked</div>
+        <ul>
+          <li>Log the commitment date in <strong>TT notes</strong> and in <strong>ChartFinder</strong> for <em>all</em> ORGs covered in this call</li>
+          <li>Update the retrieval method for each ORG</li>
+          <li>Update EMR field if blank (does not require reverification)</li>
+          <li>Send Provider Package if: site is unscheduled, chart volume changed, or PP was never received</li>
+          <li>If commit date is &gt;8 business days → document the reason clearly in the summary note</li>
+          <li>For CRS: log site forms and special instructions in TN Note; forward forms via CCL to Christine Avery Smith</li>
+        </ul>
+      </div>
+    </li>
+
+    <!-- STEP 10 — No live contact -->
+    <li class="step">
+      <div class="step-num" style="background:#64748b;">VM</div>
+      <div class="step-body">
+        <div class="step-label">If no live contact reached</div>
+        <div class="step-title">Leave a Voicemail</div>
+        <div class="script">
+          "Hello, this is <strong>[Your Name]</strong> calling on behalf of <strong>multiple health plans</strong> from Datavant today regarding a chart retrieval request. Please return my call at <strong>877-445-9293</strong> with the outreach ID <strong>[Outreach ID]</strong> at your earliest convenience. Again, the number is <strong>877-445-9293</strong> and the reference site ID is <strong>[Outreach ID]</strong>. Thank you, have a great day!"
+        </div>
+        <ul style="margin-top:10px;">
+          <li>Speak slowly — repeat the callback number and outreach ID twice</li>
+          <li>If single health plan → substitute "multiple health plans" with the specific plan name</li>
+          <li>Document the voicemail attempt in TT notes — <strong>this is not a valid schedule</strong></li>
+        </ul>
+      </div>
+    </li>
+
+    <!-- END -->
+    <li class="step">
+      <div class="step-num end">✓</div>
+      <div class="step-body" style="background:#f0fdf4;border-color:#86efac;">
+        <div class="step-title" style="color:var(--green);">Call Complete — All ORGs Covered</div>
+        <p style="font-size:13px;">All ORGs documented · Commitment date logged in notes and ChartFinder · Provider Package sent if required · EMR field updated</p>
+      </div>
+    </li>
+
+  </ol>
+
+  <footer>
+    Multi-Chart Retrieval · Step-by-Step Call Flow · Retrieval Operations – Offsite Contact Centre · Based on Call Handling Guidelines updated 03/11/2026
+  </footer>
+
+</div>
+</body>
+</html>
